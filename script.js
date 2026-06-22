@@ -1,5 +1,45 @@
 document.addEventListener('DOMContentLoaded', () => {
     
+    // --- Visitor Tracking Logic ---
+    const trackVisitor = async () => {
+        try {
+            // 1. Visit Count (localStorage)
+            let visitCount = parseInt(localStorage.getItem('visit_count') || '0');
+            visitCount++;
+            localStorage.setItem('visit_count', visitCount.toString());
+
+            // 2. Referral Source
+            const referrer = document.referrer || 'Direct';
+            
+            // 3. URL Parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const sourceParam = urlParams.get('source') || 'none';
+            const userParam = urlParams.get('user') || 'none';
+
+            // 4. Device/Browser details
+            const userAgent = navigator.userAgent;
+
+            // 5. Send to Backend
+            await fetch('/api/track', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    visitCount,
+                    referrer,
+                    sourceParam,
+                    userParam,
+                    userAgent
+                })
+            });
+        } catch (error) {
+            console.error('Tracking failed:', error);
+        }
+    };
+
+    trackVisitor();
+
     // --- Sticky Navbar ---
     const navbar = document.querySelector('.navbar');
     window.addEventListener('scroll', () => {
