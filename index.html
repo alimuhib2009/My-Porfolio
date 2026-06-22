@@ -262,5 +262,96 @@
 
     <!-- Custom JS -->
     <script src="script.js"></script>
+
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Optimization-Focused Supabase Visitor Logger -->
+    <script>
+      window.addEventListener('load', () => {
+        // Run asynchronously off the main thread to protect page load performance
+        setTimeout(async () => {
+          try {
+            // 1. Initialize Supabase client
+            const supabaseUrl = 'https://wifswhrjrujsgfosthyy.supabase.co';
+            const supabaseKey = 'sb_publishable_i4hhuoGc8HlvdBXiQmHYsw_1i3N8ejs';
+            const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+            // 2. Manage Visit Count in localStorage
+            let visitCount = localStorage.getItem('visit_count');
+            if (!visitCount) {
+              visitCount = 1;
+            } else {
+              visitCount = parseInt(visitCount, 10) + 1;
+            }
+            localStorage.setItem('visit_count', visitCount);
+
+            // 3. Parse URL Parameters (?source=... &user=...)
+            const urlParams = new URLSearchParams(window.location.search);
+            const sourceParam = urlParams.get('source') || null;
+            const userParam = urlParams.get('user') || null;
+
+            // 4. Detect Device and Browser Type from User Agent
+            const getDeviceAndBrowser = () => {
+              const ua = navigator.userAgent;
+              let device = 'Desktop';
+              if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) {
+                device = 'Mobile';
+                if (/iPad|Tablet/i.test(ua)) {
+                  device = 'Tablet';
+                }
+              }
+              
+              let browser = 'Other';
+              if (ua.includes('Firefox')) browser = 'Firefox';
+              else if (ua.includes('Edg/')) browser = 'Edge';
+              else if (ua.includes('Chrome')) browser = 'Chrome';
+              else if (ua.includes('Safari')) browser = 'Safari';
+              
+              return `${device} (${browser})`;
+            };
+            const deviceInfo = getDeviceAndBrowser();
+
+            // 5. Fetch Public IP with a robust 2-second timeout fallback
+            let publicIp = null;
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 2000);
+              
+              const ipResponse = await fetch('https://api.ipify.org?format=json', {
+                signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+              
+              if (ipResponse.ok) {
+                const ipData = await ipResponse.json();
+                publicIp = ipData.ip;
+              }
+            } catch (ipError) {
+              console.warn('IP lookup timed out or failed. Defaulting to unknown/null.', ipError);
+            }
+
+            // 6. Insert Log into Supabase
+            const { error } = await supabaseClient
+              .from('visitor_logs')
+              .insert([
+                {
+                  ip: publicIp,
+                  device: deviceInfo,
+                  source: sourceParam,
+                  username: userParam,
+                  visit_count: parseInt(visitCount, 10)
+                }
+              ]);
+
+            if (error) {
+              console.error('Supabase Logging Error:', error.message);
+            }
+          } catch (err) {
+            console.error('Visitor Logging Error:', err);
+          }
+        }, 100);
+      });
+    </script>
 </body>
 </html>
